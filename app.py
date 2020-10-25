@@ -1,5 +1,5 @@
 # import flask
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, send_file, render_template, jsonify
 import cv2
 import numpy as np
 # import matplotlib.pyplot as plt
@@ -71,7 +71,7 @@ def respond():
     # Return the response in json format
     return jsonify(response)
 
-@app.route('/data/', methods=['GET'])
+
 # xoay anh
 def Image_Alignment(file_chuan,img):
     # Convert to grayscale.
@@ -130,7 +130,8 @@ def row_line(im_th):
     # Invert floodfilled image
     im_floodfill_inv = cv2.bitwise_not(im_floodfill)
     return im_floodfill_inv
-
+    
+@app.route('/data', methods=['POST'])
 def detect(transformed_img):
     # load model
     with CustomObjectScope({'relu6': keras.layers.ReLU(6.), 'DepthwiseConv2D': keras.layers.DepthwiseConv2D}):
@@ -238,12 +239,15 @@ def detect(transformed_img):
                 else:
                     continue
         tmp_sum.append(sum_index)
-
+        map_name = ["Họ tên: ", "Số zalo: ", "Số điện thoai: ", "Tên hiển thị trên Facebook: ", "Email: ",
+                    "Học sinh THPT lớp: ", "Sinh viên cao đẳng/đại học trường: ", "Khác: ", "Ngành_Khác: "]
+        
         for k in tmp_sum:
             # print(k)
             if (k < 10000):
                 ngat_dong = "hết một thông tin!!!"
                 tmp_ket_qua.append(ngat_dong)
+                tmp_ket_qua.append(str(map_name[h]))
                 img_resize = cv2.resize(tmp_anh[h], (900, 100), interpolation=cv2.INTER_AREA)
 
                 # Threshold.
@@ -368,12 +372,31 @@ def detect(transformed_img):
                         # # lấy phần tử có giá trị lớn nhất
                         predict_img = np.argmax(prediction, axis=-1)
                         tmp_ket_qua.append(names.get(predict_img[0]))
-
+                        
             else:
                 continue
+                
+        
     
     return (tmp_ket_qua)
+    
+@app.route('/data', methods=['GET'])  
+def write_img(tmp_ket_qua):
 
+    with open('data/text.txt',"w+",encoding='UTF-8') as f:
+        couter = 1
+        f.write("\r")
+        f.write("anh: %s " % (str(couter)))
+        for i in tmp_ket_qua:
+
+            if (str(i) == "hết một thông tin!!!"):
+                f.write("\r")
+            else:
+                f.write("%s" % (str(i)))
+                    
+            couter += 1
+    
+    return 0
 
 # http://localhost:5000/prediction?url=http://trolyao.cusc.vn/image/m.jpg
 
@@ -410,9 +433,14 @@ def upload_file():
     file_chuan = cv2.imdecode(np.fromstring(file_chuan.read(), np.uint8), 1)
     return render_template('result.html', results=detect(Image_Alignment(file_chuan,img)))
 
+@app.route('/download')
+def download_file():
+	path = "data/text.txt"
+ 
+	return send_file(path, as_attachment=True,conditional=True)
 
 if __name__ == '__main__':
 
-    # app.run()
+    #app.run(debug=True, host="0.0.0.0", port='5000')
     app.run(threaded=False)
     #print(predition(img))
